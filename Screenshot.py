@@ -118,6 +118,10 @@ def create_overlay():
     """
     global root, overlay_window, canvas, canvas_offset_x, rectangle, resize_handles, RECTANGLE_DEFAULT_WIDTH, RECTANGLE_DEFAULT_HEIGHT
 
+    # only allow a single instance of the screen capture
+    if overlay_window:
+        return
+        
     # Get the current mouse position
     mouse_x, mouse_y = root.winfo_pointerxy()
     root.withdraw()  # Hide the root window
