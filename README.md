@@ -1,5 +1,7 @@
-# screenshot
+# Screenshot Tool
 This Python script provides a robust tool for taking screenshots of customizable areas on the screen. 
+
+![Tool Demo](Screenshot_demo.png)
 
 ## Overview
 This Python script is a versatile screenshot tool designed to provide users with fine-grained control over the screenshot process. Unlike standard screenshot utilities, this tool allows you to:
