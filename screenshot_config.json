@@ -1,0 +1,15 @@
+{
+    "rectangle": {
+        "x": 480,
+        "y": 1350,
+        "width": 960,
+        "height": 540
+    },
+    "dialog": {
+        "capture_pointer": false,
+        "save_clipboard": true,
+        "save_folder": false,
+        "folder_path": "C:\\Users\\zhangbo\\Desktop",
+        "delay_screenshot": false
+    }
+}
