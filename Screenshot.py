@@ -27,7 +27,8 @@ import time
 root = tk.Tk()  # Root window (hidden)
 overlay_window = None  # Overlay window for selecting the area
 canvas = None  # Canvas for drawing the rectangle
-canvas_offset_x = 0  # Offset for multi-monitor setups
+canvas_offset_x = 0  # Offset X for multi-monitor setups
+canvas_offset_y = 0  # Offset Y for multi-monitor setups
 rectangle = None  # The draggable and resizable rectangle
 resize_handles = {}  # Handles for resizing the rectangle
 drag_data = {"x": 0, "y": 0, "dragging": False, "resizing": None}  # Data for dragging/resizing
@@ -116,12 +117,12 @@ def create_overlay():
     """
     Create a semi-transparent overlay spanning all monitors with a draggable and resizable rectangle.
     """
-    global root, overlay_window, canvas, canvas_offset_x, rectangle, resize_handles, RECTANGLE_DEFAULT_WIDTH, RECTANGLE_DEFAULT_HEIGHT
-
+    global root, overlay_window, canvas, canvas_offset_x, canvas_offset_y, rectangle, resize_handles, RECTANGLE_DEFAULT_WIDTH, RECTANGLE_DEFAULT_HEIGHT
+    
     # only allow a single instance of the screen capture
     if overlay_window:
         return
-        
+
     # Get the current mouse position
     mouse_x, mouse_y = root.winfo_pointerxy()
     root.withdraw()  # Hide the root window
@@ -142,6 +143,8 @@ def create_overlay():
     # Adjust for negative offsets in multi-monitor setups
     if min_x < 0:
         canvas_offset_x = -min_x
+    if min_y < 0:
+        canvas_offset_y = -min_y
 
     # Create a single overlay window spanning all monitors
     overlay_window = tk.Toplevel()
@@ -170,15 +173,15 @@ def create_overlay():
     
     # Validate rectangle configuration
     if not (current_monitor.x <= rect_x - canvas_offset_x < current_monitor.x + current_monitor.width and
-            current_monitor.y <= rect_y < current_monitor.y + current_monitor.height and
+            current_monitor.y <= rect_y - canvas_offset_y < current_monitor.y + current_monitor.height and
             current_monitor.x <= rect_x + RECTANGLE_DEFAULT_WIDTH - canvas_offset_x < current_monitor.x + current_monitor.width and
-            current_monitor.y <= rect_y + RECTANGLE_DEFAULT_HEIGHT < current_monitor.y + current_monitor.height):
+            current_monitor.y <= rect_y + RECTANGLE_DEFAULT_HEIGHT - canvas_offset_y < current_monitor.y + current_monitor.height):
         # Reset the rectangle at the center of the current screen
         print("Reset the rectangle")
         RECTANGLE_DEFAULT_WIDTH = current_monitor.width // 2
         RECTANGLE_DEFAULT_HEIGHT = current_monitor.height // 2
         rect_x = current_monitor.x + (current_monitor.width // 2) - (RECTANGLE_DEFAULT_WIDTH // 2) + canvas_offset_x
-        rect_y = current_monitor.y + (current_monitor.height // 2) - (RECTANGLE_DEFAULT_HEIGHT // 2)
+        rect_y = current_monitor.y + (current_monitor.height // 2) - (RECTANGLE_DEFAULT_HEIGHT // 2) + canvas_offset_y
 
     # Draw the rectangle
     rectangle = canvas.create_rectangle(
@@ -233,9 +236,11 @@ def create_overlay():
     bind_rectangle_events(canvas, rectangle, resize_handles)
 
     # Position the dialog window relative to the rectangle
-    dialog_x = rect_x - (current_monitor.width // 2) - 100
-    dialog_y = rect_y + 20 + RECTANGLE_DEFAULT_HEIGHT
-    if dialog_x + DIALOG_WIDTH > current_monitor.x + current_monitor.width:
+    #dialog_x = rect_x - (current_monitor.width // 2) - 100
+    #dialog_y = rect_y + 20 + RECTANGLE_DEFAULT_HEIGHT
+    dialog_x = rect_x - canvas_offset_x
+    dialog_y = rect_y + RECTANGLE_DEFAULT_HEIGHT - canvas_offset_y + 20
+    if dialog_x + DIALOG_WIDTH > current_monitor.x + current_monitor.width: # if the dialog is across the screen
         dialog_x = current_monitor.x + current_monitor.width - DIALOG_WIDTH
     if dialog_y + DIALOG_HEIGHT > current_monitor.y + current_monitor.height:
         dialog_y = current_monitor.y + current_monitor.height - DIALOG_HEIGHT
@@ -512,7 +517,9 @@ def capture_screenshot(rect, capture_pointer=False):
     # Capture the screenshot
     if rect:
         x1, y1, x2, y2 = map(int, rect)  # Convert to integers
-        x1, x2 = (x1 - canvas_offset_x, x2 - canvas_offset_x)  # Adjust for multi-monitor setups
+        # Adjust for multi-monitor setups
+        x1, x2 = (x1 - canvas_offset_x, x2 - canvas_offset_x)
+        y1, y2 = (y1 - canvas_offset_y, y2 - canvas_offset_y)
         screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2), all_screens=True)
 
         # Capture mouse pointer if requested
@@ -588,7 +595,7 @@ def destroy_overlay():
     """
     Destroy the overlay window.
     """
-    global overlay_window, canvas, rectangle, resize_handles
+    global overlay_window, canvas, rectangle, resize_handles, running
     if overlay_window:
         try:
             overlay_window.destroy()
@@ -610,8 +617,13 @@ def win32_event_filter(msg, data):
             listener.suppress_event()
             return False  # Suppress the Print Screen key by returning False
     
-    # Allow all other keys to be processed normally
-    return True
+    # Suppress other VK_SNAPSHOT key events (like WM_KEYUP, WM_SYSKEYUP) without triggering the screenshot feature
+    if data.vkCode == 0x2C:
+        listener.suppress_event()
+        return False
+    else:
+        # Allow all other keys to be processed normally
+        return True
     
 # Handle key press events
 def on_press(key):
